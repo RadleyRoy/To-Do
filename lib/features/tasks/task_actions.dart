@@ -5,9 +5,12 @@ import '../../core/db/database.dart';
 import '../../core/notifications/notification_service.dart';
 import '../../core/providers.dart';
 import '../../core/recurrence/recurrence_engine.dart';
+import '../../core/widget/home_widget_service.dart';
 
 final taskActionsProvider = Provider<TaskActions>((ref) => TaskActions(
-    ref.watch(databaseProvider), ref.watch(notificationServiceProvider)));
+    ref.watch(databaseProvider),
+    ref.watch(notificationServiceProvider),
+    ref.watch(homeWidgetServiceProvider)));
 
 /// One draft row in the task editor's subtask list; id is null until saved.
 class SubtaskDraft {
@@ -18,21 +21,37 @@ class SubtaskDraft {
   bool isDone;
 }
 
-/// Mutations that must keep the database and scheduled alarms in sync.
+/// Mutations that must keep the database, scheduled alarms, and the
+/// home-screen widget in sync.
 class TaskActions {
-  TaskActions(this._db, this._notifications);
+  TaskActions(this._db, this._notifications, this._homeWidget);
 
   final AppDatabase _db;
   final NotificationService _notifications;
+  final HomeWidgetService _homeWidget;
 
-  Future<Task> complete(Task task) async {
-    final updated = await _db.completeTask(task);
+  Future<void> _refreshWidget() => _homeWidget.refresh(_db);
+
+  /// Completes [task]; pass [on] to record it as done on another day
+  /// (after-completion recurrence then counts from that day).
+  Future<Task> complete(Task task, {DateTime? on}) async {
+    final updated = await _db.completeTask(task, now: on);
     await _notifications.syncTaskReminder(updated);
+    await _refreshWidget();
     return updated;
   }
 
   Future<Task> uncomplete(Task task) async {
     final updated = await _db.uncompleteTask(task);
+    await _notifications.syncTaskReminder(updated);
+    await _refreshWidget();
+    return updated;
+  }
+
+  /// Snoozes the task's reminder to now + [duration].
+  Future<Task> snooze(Task task, Duration duration) async {
+    final updated =
+        await _db.snoozeTask(task.id, DateTime.now().add(duration));
     await _notifications.syncTaskReminder(updated);
     return updated;
   }
@@ -40,10 +59,15 @@ class TaskActions {
   Future<void> delete(Task task) async {
     await _db.deleteTask(task.id);
     await _notifications.cancelTaskReminder(task.id);
+    await _refreshWidget();
   }
 
-  Future<int> addChecklistItem(int listId, String title) =>
-      _db.insertTask(TasksCompanion.insert(title: title, listId: Value(listId)));
+  Future<int> addChecklistItem(int listId, String title) async {
+    final id = await _db
+        .insertTask(TasksCompanion.insert(title: title, listId: Value(listId)));
+    await _refreshWidget();
+    return id;
+  }
 
   /// Inserts or updates a task from the editor and reconciles its subtasks
   /// and alarm. Returns the task id.
@@ -54,25 +78,30 @@ class TaskActions {
     int? listId,
     DateTime? dueAt,
     required bool hasAlarm,
+    int? reminderOffsetMinutes,
     required RecurrenceType recurrenceType,
     RecurrenceInterval? interval,
     List<SubtaskDraft> subtasks = const [],
   }) async {
     final recurring = recurrenceType != RecurrenceType.none;
+    final alarm = hasAlarm && dueAt != null;
     final companion = TasksCompanion(
       title: Value(title),
       notes: Value(notes),
       listId: Value(listId),
       dueAt: Value(dueAt),
-      hasAlarm: Value(hasAlarm && dueAt != null),
+      hasAlarm: Value(alarm),
+      reminderOffsetMinutes: Value(alarm ? reminderOffsetMinutes : null),
       recurrenceType: Value(recurrenceType),
       intervalCount: Value(recurring ? interval?.count : null),
       intervalUnit: Value(recurring ? interval?.unit : null),
       // Fixed schedules are (re-)anchored at whatever due date was saved.
       anchorDate:
           Value(recurrenceType == RecurrenceType.fixedSchedule ? dueAt : null),
-      // Editing a done task's date/recurrence brings it back.
+      // Editing a done task's date/recurrence brings it back, and any old
+      // snooze no longer applies.
       isDone: const Value(false),
+      snoozedUntil: const Value(null),
     );
 
     final int taskId;
@@ -87,6 +116,7 @@ class TaskActions {
 
     final saved = await _db.getTask(taskId);
     if (saved != null) await _notifications.syncTaskReminder(saved);
+    await _refreshWidget();
     return taskId;
   }
 

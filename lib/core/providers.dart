@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'db/database.dart';
 import 'notifications/notification_service.dart';
 import 'utils/date_utils.dart';
+import 'widget/home_widget_service.dart';
 
 /// Overridden with real instances in main().
 final databaseProvider = Provider<AppDatabase>((ref) => throw UnimplementedError());
 final notificationServiceProvider =
     Provider<NotificationService>((ref) => throw UnimplementedError());
+final homeWidgetServiceProvider =
+    Provider<HomeWidgetService>((ref) => HomeWidgetService());
 
 final listsWithStatsProvider = StreamProvider<List<ListWithStats>>(
     (ref) => ref.watch(databaseProvider).watchListsWithStats());

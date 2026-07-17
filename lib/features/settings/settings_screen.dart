@@ -149,7 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Taskley'),
-            subtitle: Text('Version 0.1.0 · offline to-do app\ncreated by Radley'),
+            subtitle: Text('Version 0.2.0 · offline to-do app\ncreated by Radley'),
           ),
         ],
       ),

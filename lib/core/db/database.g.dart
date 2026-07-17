@@ -377,6 +377,27 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _reminderOffsetMinutesMeta =
+      const VerificationMeta('reminderOffsetMinutes');
+  @override
+  late final GeneratedColumn<int> reminderOffsetMinutes = GeneratedColumn<int>(
+    'reminder_offset_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _snoozedUntilMeta = const VerificationMeta(
+    'snoozedUntil',
+  );
+  @override
+  late final GeneratedColumn<DateTime> snoozedUntil = GeneratedColumn<DateTime>(
+    'snoozed_until',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   late final GeneratedColumnWithTypeConverter<RecurrenceType, int>
   recurrenceType = GeneratedColumn<int>(
@@ -463,6 +484,8 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     notes,
     dueAt,
     hasAlarm,
+    reminderOffsetMinutes,
+    snoozedUntil,
     recurrenceType,
     intervalCount,
     intervalUnit,
@@ -516,6 +539,24 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
       context.handle(
         _hasAlarmMeta,
         hasAlarm.isAcceptableOrUnknown(data['has_alarm']!, _hasAlarmMeta),
+      );
+    }
+    if (data.containsKey('reminder_offset_minutes')) {
+      context.handle(
+        _reminderOffsetMinutesMeta,
+        reminderOffsetMinutes.isAcceptableOrUnknown(
+          data['reminder_offset_minutes']!,
+          _reminderOffsetMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('snoozed_until')) {
+      context.handle(
+        _snoozedUntilMeta,
+        snoozedUntil.isAcceptableOrUnknown(
+          data['snoozed_until']!,
+          _snoozedUntilMeta,
+        ),
       );
     }
     if (data.containsKey('interval_count')) {
@@ -584,6 +625,14 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.bool,
         data['${effectivePrefix}has_alarm'],
       )!,
+      reminderOffsetMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_offset_minutes'],
+      ),
+      snoozedUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}snoozed_until'],
+      ),
       recurrenceType: $TasksTable.$converterrecurrenceType.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -643,6 +692,13 @@ class Task extends DataClass implements Insertable<Task> {
   /// Null for plain checklist items. Recurring tasks always have a due date.
   final DateTime? dueAt;
   final bool hasAlarm;
+
+  /// Ring the alarm this many minutes before [dueAt]; null/0 = at due time.
+  final int? reminderOffsetMinutes;
+
+  /// When snoozed from a notification, the next reminder fires at this time
+  /// instead. Cleared on complete/save.
+  final DateTime? snoozedUntil;
   final RecurrenceType recurrenceType;
   final int? intervalCount;
   final IntervalUnit? intervalUnit;
@@ -663,6 +719,8 @@ class Task extends DataClass implements Insertable<Task> {
     this.notes,
     this.dueAt,
     required this.hasAlarm,
+    this.reminderOffsetMinutes,
+    this.snoozedUntil,
     required this.recurrenceType,
     this.intervalCount,
     this.intervalUnit,
@@ -686,6 +744,12 @@ class Task extends DataClass implements Insertable<Task> {
       map['due_at'] = Variable<DateTime>(dueAt);
     }
     map['has_alarm'] = Variable<bool>(hasAlarm);
+    if (!nullToAbsent || reminderOffsetMinutes != null) {
+      map['reminder_offset_minutes'] = Variable<int>(reminderOffsetMinutes);
+    }
+    if (!nullToAbsent || snoozedUntil != null) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil);
+    }
     {
       map['recurrence_type'] = Variable<int>(
         $TasksTable.$converterrecurrenceType.toSql(recurrenceType),
@@ -722,6 +786,12 @@ class Task extends DataClass implements Insertable<Task> {
           ? const Value.absent()
           : Value(dueAt),
       hasAlarm: Value(hasAlarm),
+      reminderOffsetMinutes: reminderOffsetMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderOffsetMinutes),
+      snoozedUntil: snoozedUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozedUntil),
       recurrenceType: Value(recurrenceType),
       intervalCount: intervalCount == null && nullToAbsent
           ? const Value.absent()
@@ -750,6 +820,10 @@ class Task extends DataClass implements Insertable<Task> {
       notes: serializer.fromJson<String?>(json['notes']),
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       hasAlarm: serializer.fromJson<bool>(json['hasAlarm']),
+      reminderOffsetMinutes: serializer.fromJson<int?>(
+        json['reminderOffsetMinutes'],
+      ),
+      snoozedUntil: serializer.fromJson<DateTime?>(json['snoozedUntil']),
       recurrenceType: $TasksTable.$converterrecurrenceType.fromJson(
         serializer.fromJson<int>(json['recurrenceType']),
       ),
@@ -773,6 +847,8 @@ class Task extends DataClass implements Insertable<Task> {
       'notes': serializer.toJson<String?>(notes),
       'dueAt': serializer.toJson<DateTime?>(dueAt),
       'hasAlarm': serializer.toJson<bool>(hasAlarm),
+      'reminderOffsetMinutes': serializer.toJson<int?>(reminderOffsetMinutes),
+      'snoozedUntil': serializer.toJson<DateTime?>(snoozedUntil),
       'recurrenceType': serializer.toJson<int>(
         $TasksTable.$converterrecurrenceType.toJson(recurrenceType),
       ),
@@ -794,6 +870,8 @@ class Task extends DataClass implements Insertable<Task> {
     Value<String?> notes = const Value.absent(),
     Value<DateTime?> dueAt = const Value.absent(),
     bool? hasAlarm,
+    Value<int?> reminderOffsetMinutes = const Value.absent(),
+    Value<DateTime?> snoozedUntil = const Value.absent(),
     RecurrenceType? recurrenceType,
     Value<int?> intervalCount = const Value.absent(),
     Value<IntervalUnit?> intervalUnit = const Value.absent(),
@@ -808,6 +886,10 @@ class Task extends DataClass implements Insertable<Task> {
     notes: notes.present ? notes.value : this.notes,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     hasAlarm: hasAlarm ?? this.hasAlarm,
+    reminderOffsetMinutes: reminderOffsetMinutes.present
+        ? reminderOffsetMinutes.value
+        : this.reminderOffsetMinutes,
+    snoozedUntil: snoozedUntil.present ? snoozedUntil.value : this.snoozedUntil,
     recurrenceType: recurrenceType ?? this.recurrenceType,
     intervalCount: intervalCount.present
         ? intervalCount.value
@@ -826,6 +908,12 @@ class Task extends DataClass implements Insertable<Task> {
       notes: data.notes.present ? data.notes.value : this.notes,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       hasAlarm: data.hasAlarm.present ? data.hasAlarm.value : this.hasAlarm,
+      reminderOffsetMinutes: data.reminderOffsetMinutes.present
+          ? data.reminderOffsetMinutes.value
+          : this.reminderOffsetMinutes,
+      snoozedUntil: data.snoozedUntil.present
+          ? data.snoozedUntil.value
+          : this.snoozedUntil,
       recurrenceType: data.recurrenceType.present
           ? data.recurrenceType.value
           : this.recurrenceType,
@@ -853,6 +941,8 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('notes: $notes, ')
           ..write('dueAt: $dueAt, ')
           ..write('hasAlarm: $hasAlarm, ')
+          ..write('reminderOffsetMinutes: $reminderOffsetMinutes, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
           ..write('recurrenceType: $recurrenceType, ')
           ..write('intervalCount: $intervalCount, ')
           ..write('intervalUnit: $intervalUnit, ')
@@ -872,6 +962,8 @@ class Task extends DataClass implements Insertable<Task> {
     notes,
     dueAt,
     hasAlarm,
+    reminderOffsetMinutes,
+    snoozedUntil,
     recurrenceType,
     intervalCount,
     intervalUnit,
@@ -890,6 +982,8 @@ class Task extends DataClass implements Insertable<Task> {
           other.notes == this.notes &&
           other.dueAt == this.dueAt &&
           other.hasAlarm == this.hasAlarm &&
+          other.reminderOffsetMinutes == this.reminderOffsetMinutes &&
+          other.snoozedUntil == this.snoozedUntil &&
           other.recurrenceType == this.recurrenceType &&
           other.intervalCount == this.intervalCount &&
           other.intervalUnit == this.intervalUnit &&
@@ -906,6 +1000,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<String?> notes;
   final Value<DateTime?> dueAt;
   final Value<bool> hasAlarm;
+  final Value<int?> reminderOffsetMinutes;
+  final Value<DateTime?> snoozedUntil;
   final Value<RecurrenceType> recurrenceType;
   final Value<int?> intervalCount;
   final Value<IntervalUnit?> intervalUnit;
@@ -920,6 +1016,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.notes = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.hasAlarm = const Value.absent(),
+    this.reminderOffsetMinutes = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
     this.recurrenceType = const Value.absent(),
     this.intervalCount = const Value.absent(),
     this.intervalUnit = const Value.absent(),
@@ -935,6 +1033,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.notes = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.hasAlarm = const Value.absent(),
+    this.reminderOffsetMinutes = const Value.absent(),
+    this.snoozedUntil = const Value.absent(),
     this.recurrenceType = const Value.absent(),
     this.intervalCount = const Value.absent(),
     this.intervalUnit = const Value.absent(),
@@ -950,6 +1050,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? notes,
     Expression<DateTime>? dueAt,
     Expression<bool>? hasAlarm,
+    Expression<int>? reminderOffsetMinutes,
+    Expression<DateTime>? snoozedUntil,
     Expression<int>? recurrenceType,
     Expression<int>? intervalCount,
     Expression<int>? intervalUnit,
@@ -965,6 +1067,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (notes != null) 'notes': notes,
       if (dueAt != null) 'due_at': dueAt,
       if (hasAlarm != null) 'has_alarm': hasAlarm,
+      if (reminderOffsetMinutes != null)
+        'reminder_offset_minutes': reminderOffsetMinutes,
+      if (snoozedUntil != null) 'snoozed_until': snoozedUntil,
       if (recurrenceType != null) 'recurrence_type': recurrenceType,
       if (intervalCount != null) 'interval_count': intervalCount,
       if (intervalUnit != null) 'interval_unit': intervalUnit,
@@ -982,6 +1087,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<String?>? notes,
     Value<DateTime?>? dueAt,
     Value<bool>? hasAlarm,
+    Value<int?>? reminderOffsetMinutes,
+    Value<DateTime?>? snoozedUntil,
     Value<RecurrenceType>? recurrenceType,
     Value<int?>? intervalCount,
     Value<IntervalUnit?>? intervalUnit,
@@ -997,6 +1104,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
       notes: notes ?? this.notes,
       dueAt: dueAt ?? this.dueAt,
       hasAlarm: hasAlarm ?? this.hasAlarm,
+      reminderOffsetMinutes:
+          reminderOffsetMinutes ?? this.reminderOffsetMinutes,
+      snoozedUntil: snoozedUntil ?? this.snoozedUntil,
       recurrenceType: recurrenceType ?? this.recurrenceType,
       intervalCount: intervalCount ?? this.intervalCount,
       intervalUnit: intervalUnit ?? this.intervalUnit,
@@ -1027,6 +1137,14 @@ class TasksCompanion extends UpdateCompanion<Task> {
     }
     if (hasAlarm.present) {
       map['has_alarm'] = Variable<bool>(hasAlarm.value);
+    }
+    if (reminderOffsetMinutes.present) {
+      map['reminder_offset_minutes'] = Variable<int>(
+        reminderOffsetMinutes.value,
+      );
+    }
+    if (snoozedUntil.present) {
+      map['snoozed_until'] = Variable<DateTime>(snoozedUntil.value);
     }
     if (recurrenceType.present) {
       map['recurrence_type'] = Variable<int>(
@@ -1065,6 +1183,8 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('notes: $notes, ')
           ..write('dueAt: $dueAt, ')
           ..write('hasAlarm: $hasAlarm, ')
+          ..write('reminderOffsetMinutes: $reminderOffsetMinutes, ')
+          ..write('snoozedUntil: $snoozedUntil, ')
           ..write('recurrenceType: $recurrenceType, ')
           ..write('intervalCount: $intervalCount, ')
           ..write('intervalUnit: $intervalUnit, ')
@@ -2289,6 +2409,8 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String?> notes,
       Value<DateTime?> dueAt,
       Value<bool> hasAlarm,
+      Value<int?> reminderOffsetMinutes,
+      Value<DateTime?> snoozedUntil,
       Value<RecurrenceType> recurrenceType,
       Value<int?> intervalCount,
       Value<IntervalUnit?> intervalUnit,
@@ -2305,6 +2427,8 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String?> notes,
       Value<DateTime?> dueAt,
       Value<bool> hasAlarm,
+      Value<int?> reminderOffsetMinutes,
+      Value<DateTime?> snoozedUntil,
       Value<RecurrenceType> recurrenceType,
       Value<int?> intervalCount,
       Value<IntervalUnit?> intervalUnit,
@@ -2421,6 +2545,16 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<bool> get hasAlarm => $composableBuilder(
     column: $table.hasAlarm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderOffsetMinutes => $composableBuilder(
+    column: $table.reminderOffsetMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2594,6 +2728,16 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderOffsetMinutes => $composableBuilder(
+    column: $table.reminderOffsetMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get recurrenceType => $composableBuilder(
     column: $table.recurrenceType,
     builder: (column) => ColumnOrderings(column),
@@ -2676,6 +2820,16 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<bool> get hasAlarm =>
       $composableBuilder(column: $table.hasAlarm, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderOffsetMinutes => $composableBuilder(
+    column: $table.reminderOffsetMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get snoozedUntil => $composableBuilder(
+    column: $table.snoozedUntil,
+    builder: (column) => column,
+  );
 
   GeneratedColumnWithTypeConverter<RecurrenceType, int> get recurrenceType =>
       $composableBuilder(
@@ -2846,6 +3000,8 @@ class $$TasksTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<bool> hasAlarm = const Value.absent(),
+                Value<int?> reminderOffsetMinutes = const Value.absent(),
+                Value<DateTime?> snoozedUntil = const Value.absent(),
                 Value<RecurrenceType> recurrenceType = const Value.absent(),
                 Value<int?> intervalCount = const Value.absent(),
                 Value<IntervalUnit?> intervalUnit = const Value.absent(),
@@ -2860,6 +3016,8 @@ class $$TasksTableTableManager
                 notes: notes,
                 dueAt: dueAt,
                 hasAlarm: hasAlarm,
+                reminderOffsetMinutes: reminderOffsetMinutes,
+                snoozedUntil: snoozedUntil,
                 recurrenceType: recurrenceType,
                 intervalCount: intervalCount,
                 intervalUnit: intervalUnit,
@@ -2876,6 +3034,8 @@ class $$TasksTableTableManager
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<bool> hasAlarm = const Value.absent(),
+                Value<int?> reminderOffsetMinutes = const Value.absent(),
+                Value<DateTime?> snoozedUntil = const Value.absent(),
                 Value<RecurrenceType> recurrenceType = const Value.absent(),
                 Value<int?> intervalCount = const Value.absent(),
                 Value<IntervalUnit?> intervalUnit = const Value.absent(),
@@ -2890,6 +3050,8 @@ class $$TasksTableTableManager
                 notes: notes,
                 dueAt: dueAt,
                 hasAlarm: hasAlarm,
+                reminderOffsetMinutes: reminderOffsetMinutes,
+                snoozedUntil: snoozedUntil,
                 recurrenceType: recurrenceType,
                 intervalCount: intervalCount,
                 intervalUnit: intervalUnit,

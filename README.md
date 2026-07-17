@@ -21,6 +21,14 @@ on your phone in a local SQLite database — no account, no cloud, no tracking.
   - **Fixed schedule** — "Mom's birthday every year". Completing it late
     never shifts the schedule.
 - **Alarms** — exact, survive reboots, fire even in Doze mode (Android 13+).
+  **Mark done or snooze straight from the notification** (15 min, 1 h, 1 day,
+  or 1 week), and set a "remind me before" offset (e.g. 1 day before the due
+  date).
+- **Home-screen widget** — today's tasks at a glance; taps open the app.
+- **Drag-and-drop reordering** — long-press to reorder lists and list items.
+- **Backdated completion** — "I actually did this last Tuesday": complete a
+  task as of an earlier day, and after-completion recurrence counts from that
+  day.
 - **Calendar view** — month / 2-week / week formats with dots on busy days
   and a per-day agenda.
 - **Subtasks & notes** on any task.
@@ -148,11 +156,11 @@ lib/
 
 Ideas for future versions, roughly in priority order:
 
+- [x] Notification actions: **mark done** and **snooze** straight from the alarm *(v0.2.0)*
+- [x] "Remind me before" offsets (e.g. 1 day before the due date) *(v0.2.0)*
+- [x] Home-screen widget with today's tasks *(v0.2.0)*
+- [x] Drag-and-drop reordering *(v0.2.0)*
 - [ ] Priorities, tags, and full-text search
-- [ ] Notification actions: **mark done** and **snooze** straight from the alarm
-- [ ] "Remind me before" offsets (e.g. 1 day before the due date)
-- [ ] Home-screen widget with today's tasks
-- [ ] Drag-and-drop reordering
 - [ ] Statistics: completion streaks, history charts
 - [ ] Archive / trash with undo
 - [ ] Reusable checklist templates (reset a grocery list with one tap)

@@ -113,6 +113,51 @@ void main() {
     });
   });
 
+  group('snooze', () {
+    test('snoozeTask sets snoozedUntil and completing clears it', () async {
+      final taskId = await db.insertTask(TasksCompanion.insert(
+        title: 'Water plants',
+        dueAt: Value(DateTime(2026, 7, 1, 8, 0)),
+        hasAlarm: const Value(true),
+        recurrenceType: const Value(RecurrenceType.afterCompletion),
+        intervalCount: const Value(3),
+        intervalUnit: const Value(IntervalUnit.day),
+      ));
+
+      final until = DateTime(2026, 7, 1, 9, 0);
+      var task = await db.snoozeTask(taskId, until);
+      expect(task.snoozedUntil, until);
+
+      task = await db.completeTask(task, now: DateTime(2026, 7, 1, 10, 0));
+      expect(task.snoozedUntil, isNull);
+      expect(task.dueAt, DateTime(2026, 7, 4, 8, 0));
+    });
+  });
+
+  group('reordering', () {
+    test('reorderTasks persists drag order within a list', () async {
+      final listId = await db.createList('Groceries');
+      final a = await db.insertTask(
+          TasksCompanion.insert(title: 'A', listId: Value(listId)));
+      final b = await db.insertTask(
+          TasksCompanion.insert(title: 'B', listId: Value(listId)));
+      final c = await db.insertTask(
+          TasksCompanion.insert(title: 'C', listId: Value(listId)));
+
+      await db.reorderTasks([c, a, b]);
+      final tasks = await db.watchTasksInList(listId).first;
+      expect(tasks.map((t) => t.title), ['C', 'A', 'B']);
+    });
+
+    test('reorderLists persists drag order', () async {
+      final one = await db.createList('One');
+      final two = await db.createList('Two');
+      await db.reorderLists([two, one]);
+      final lists = await db.watchListsWithStats().first;
+      expect(lists.map((l) => l.list.name), ['Two', 'One']);
+    });
+  });
+
   group('smart views', () {
     test('today includes overdue, upcoming excludes done', () async {
       final now = DateTime(2026, 7, 17, 12, 0);

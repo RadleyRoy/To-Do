@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/db/database.dart';
 import '../../core/providers.dart';
 import '../tasks/task_actions.dart';
 import '../tasks/task_editor_sheet.dart';
@@ -15,6 +16,49 @@ class ListDetailScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<ListDetailScreen> createState() => _ListDetailScreenState();
+}
+
+/// Open items with long-press drag-to-reorder; keeps a local copy so the row
+/// moves instantly while the new order is persisted.
+class _ReorderableOpenTasks extends ConsumerStatefulWidget {
+  const _ReorderableOpenTasks({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  ConsumerState<_ReorderableOpenTasks> createState() =>
+      _ReorderableOpenTasksState();
+}
+
+class _ReorderableOpenTasksState extends ConsumerState<_ReorderableOpenTasks> {
+  late List<Task> _tasks = widget.tasks;
+
+  @override
+  void didUpdateWidget(_ReorderableOpenTasks oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _tasks = widget.tasks;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      onReorderItem: (oldIndex, newIndex) {
+        setState(() {
+          final moved = _tasks.removeAt(oldIndex);
+          _tasks.insert(newIndex, moved);
+        });
+        ref
+            .read(databaseProvider)
+            .reorderTasks([for (final t in _tasks) t.id]);
+      },
+      children: [
+        for (final task in _tasks)
+          TaskTile(key: ValueKey('open-${task.id}'), task: task),
+      ],
+    );
+  }
 }
 
 class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
@@ -65,7 +109,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                 }
                 return ListView(
                   children: [
-                    for (final task in open) TaskTile(task: task),
+                    _ReorderableOpenTasks(tasks: open),
                     if (done.isNotEmpty) ...[
                       InkWell(
                         onTap: () =>

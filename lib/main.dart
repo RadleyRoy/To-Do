@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/db/database.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
+import 'core/widget/home_widget_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,7 @@ Future<void> main() async {
   await notifications.init();
   // Covers app updates and anything the boot receiver missed.
   notifications.rescheduleAll(db);
+  HomeWidgetService().refresh(db);
 
   runApp(ProviderScope(
     overrides: [

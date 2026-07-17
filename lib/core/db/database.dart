@@ -25,6 +25,13 @@ class Tasks extends Table {
   /// Null for plain checklist items. Recurring tasks always have a due date.
   DateTimeColumn get dueAt => dateTime().nullable()();
   BoolColumn get hasAlarm => boolean().withDefault(const Constant(false))();
+
+  /// Ring the alarm this many minutes before [dueAt]; null/0 = at due time.
+  IntColumn get reminderOffsetMinutes => integer().nullable()();
+
+  /// When snoozed from a notification, the next reminder fires at this time
+  /// instead. Cleared on complete/save.
+  DateTimeColumn get snoozedUntil => dateTime().nullable()();
   IntColumn get recurrenceType =>
       intEnum<RecurrenceType>().withDefault(const Constant(0))();
   IntColumn get intervalCount => integer().nullable()();
@@ -88,12 +95,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open() : super(driftDatabase(name: 'taskley'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(tasks, tasks.reminderOffsetMinutes);
+            await m.addColumn(tasks, tasks.snoozedUntil);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
+          // The notification background isolate opens its own connection;
+          // wait instead of failing if a write briefly overlaps.
+          await customStatement('PRAGMA busy_timeout = 3000');
         },
       );
 
@@ -132,6 +148,14 @@ class AppDatabase extends _$AppDatabase {
   Future<void> renameList(int id, String name) =>
       (update(taskLists)..where((l) => l.id.equals(id)))
           .write(TaskListsCompanion(name: Value(name)));
+
+  /// Persists a drag-and-drop ordering: position = index in [orderedIds].
+  Future<void> reorderLists(List<int> orderedIds) => batch((b) {
+        for (final (index, id) in orderedIds.indexed) {
+          b.update(taskLists, TaskListsCompanion(position: Value(index)),
+              where: (TaskLists t) => t.id.equals(id));
+        }
+      });
 
   Future<void> deleteList(int id) =>
       (delete(taskLists)..where((l) => l.id.equals(id))).go();
@@ -203,6 +227,20 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteTask(int id) =>
       (delete(tasks)..where((t) => t.id.equals(id))).go();
 
+  /// Persists a drag-and-drop ordering of tasks within a list.
+  Future<void> reorderTasks(List<int> orderedIds) => batch((b) {
+        for (final (index, id) in orderedIds.indexed) {
+          b.update(tasks, TasksCompanion(position: Value(index)),
+              where: (Tasks t) => t.id.equals(id));
+        }
+      });
+
+  /// Snoozes the task's reminder until [until]; returns the updated task.
+  Future<Task> snoozeTask(int id, DateTime until) async {
+    await updateTask(id, TasksCompanion(snoozedUntil: Value(until)));
+    return (await getTask(id))!;
+  }
+
   // ---------------------------------------------------------------------
   // Completing tasks
   // ---------------------------------------------------------------------
@@ -214,7 +252,8 @@ class AppDatabase extends _$AppDatabase {
     final at = now ?? DateTime.now();
     return transaction(() async {
       if (task.recurrenceType == RecurrenceType.none) {
-        await updateTask(task.id, const TasksCompanion(isDone: Value(true)));
+        await updateTask(task.id,
+            const TasksCompanion(isDone: Value(true), snoozedUntil: Value(null)));
         return (await getTask(task.id))!;
       }
       final interval =
@@ -237,7 +276,8 @@ class AppDatabase extends _$AppDatabase {
           ),
         RecurrenceType.none => throw StateError('unreachable'),
       };
-      await updateTask(task.id, TasksCompanion(dueAt: Value(nextDue)));
+      await updateTask(task.id,
+          TasksCompanion(dueAt: Value(nextDue), snoozedUntil: const Value(null)));
       return (await getTask(task.id))!;
     });
   }
@@ -259,7 +299,10 @@ class AppDatabase extends _$AppDatabase {
       if (latest != null) {
         await (delete(completions)..where((c) => c.id.equals(latest.id))).go();
         await updateTask(
-            task.id, TasksCompanion(dueAt: Value(latest.dueAtSnapshot)));
+            task.id,
+            TasksCompanion(
+                dueAt: Value(latest.dueAtSnapshot),
+                snoozedUntil: const Value(null)));
       }
       return (await getTask(task.id))!;
     });
@@ -322,7 +365,7 @@ class AppDatabase extends _$AppDatabase {
   // Backup / restore
   // ---------------------------------------------------------------------
 
-  static const backupSchemaVersion = 1;
+  static const backupSchemaVersion = 2;
 
   Future<Map<String, dynamic>> exportData() async {
     final lists = await select(taskLists).get();

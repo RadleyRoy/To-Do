@@ -8,6 +8,7 @@ import 'package:taskley/core/db/database.dart';
 import 'package:taskley/core/notifications/notification_service.dart';
 import 'package:taskley/core/providers.dart';
 import 'package:taskley/core/recurrence/recurrence_engine.dart';
+import 'package:taskley/core/widget/home_widget_service.dart';
 
 /// Platform channels aren't available in widget tests, so every method that
 /// would hit the notifications plugin becomes a no-op.
@@ -43,6 +44,13 @@ class FakeNotificationService extends NotificationService {
   Future<void> rescheduleAll(AppDatabase db) async {}
 }
 
+/// The real service awaits a db stream, which never resolves inside the
+/// widget-test fake-async zone; the platform channel is unavailable anyway.
+class FakeHomeWidgetService extends HomeWidgetService {
+  @override
+  Future<void> refresh(AppDatabase db) async {}
+}
+
 void main() {
   late AppDatabase db;
   late FakeNotificationService notifications;
@@ -61,6 +69,7 @@ void main() {
       overrides: [
         databaseProvider.overrideWithValue(db),
         notificationServiceProvider.overrideWithValue(notifications),
+        homeWidgetServiceProvider.overrideWithValue(FakeHomeWidgetService()),
       ],
       child: const TaskleyApp(),
     ));

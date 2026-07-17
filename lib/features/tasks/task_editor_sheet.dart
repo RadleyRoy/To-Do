@@ -46,6 +46,7 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
   DateTime? _dueDate; // date part
   TimeOfDay? _dueTime;
   bool _hasAlarm = false;
+  int _reminderOffset = 0; // minutes before dueAt; 0 = at due time
   RecurrenceType _recurrence = RecurrenceType.none;
   IntervalUnit _intervalUnit = IntervalUnit.month;
   List<SubtaskDraft> _subtasks = [];
@@ -66,6 +67,7 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
       }
     }
     _hasAlarm = task?.hasAlarm ?? false;
+    _reminderOffset = task?.reminderOffsetMinutes ?? 0;
     _recurrence = task?.recurrenceType ?? RecurrenceType.none;
     _intervalUnit = task?.intervalUnit ?? IntervalUnit.month;
     _intervalCount.text = '${task?.intervalCount ?? 1}';
@@ -126,12 +128,18 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
                   child: Text(editing ? 'Edit task' : 'New task',
                       style: theme.textTheme.titleLarge),
                 ),
-                if (editing)
+                if (editing) ...[
+                  IconButton(
+                    tooltip: 'Mark done on a past day',
+                    icon: const Icon(Icons.event_available),
+                    onPressed: _completeOnDate,
+                  ),
                   IconButton(
                     tooltip: 'Delete task',
                     icon: const Icon(Icons.delete_outline),
                     onPressed: _confirmDelete,
                   ),
+                ],
                 FilledButton(onPressed: _save, child: const Text('Save')),
               ],
             ),
@@ -212,6 +220,24 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
                   ? null
                   : (v) => setState(() => _hasAlarm = v),
             ),
+            if (_hasAlarm && _dueDate != null) ...[
+              const SizedBox(height: 4),
+              DropdownButtonFormField<int>(
+                initialValue: _reminderOffset,
+                decoration: const InputDecoration(
+                    labelText: 'Remind me', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('At the due time')),
+                  DropdownMenuItem(value: 5, child: Text('5 minutes before')),
+                  DropdownMenuItem(value: 15, child: Text('15 minutes before')),
+                  DropdownMenuItem(value: 30, child: Text('30 minutes before')),
+                  DropdownMenuItem(value: 60, child: Text('1 hour before')),
+                  DropdownMenuItem(value: 1440, child: Text('1 day before')),
+                  DropdownMenuItem(value: 10080, child: Text('1 week before')),
+                ],
+                onChanged: (v) => setState(() => _reminderOffset = v ?? 0),
+              ),
+            ],
             const SizedBox(height: 8),
             Text('Repeat', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -395,11 +421,43 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
           listId: _listId,
           dueAt: _dueAt,
           hasAlarm: _hasAlarm,
+          reminderOffsetMinutes: _reminderOffset == 0 ? null : _reminderOffset,
           recurrenceType: _recurrence,
           interval: interval,
           subtasks: _subtasks,
         );
     if (mounted) navigator.pop();
+  }
+
+  /// "I actually did this on another day": completes the task as of a picked
+  /// date, so after-completion recurrence counts from that day.
+  Future<void> _completeOnDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      helpText: 'Mark done on…',
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 365 * 5)),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final completedAt = isSameDay(picked, now)
+        ? now
+        : DateTime(picked.year, picked.month, picked.day, now.hour, now.minute);
+    final actions = ref.read(taskActionsProvider);
+    final updated = await actions.complete(widget.task!, on: completedAt);
+    navigator.pop();
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(widget.task!.recurrenceType != RecurrenceType.none &&
+              updated.dueAt != null
+          ? 'Done ${formatDue(completedAt)} — next: ${formatDue(updated.dueAt!)}'
+          : 'Completed "${widget.task!.title}"'),
+      action: SnackBarAction(
+          label: 'Undo', onPressed: () => actions.uncomplete(updated)),
+    ));
   }
 
   Future<void> _confirmDelete() async {

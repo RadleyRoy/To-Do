@@ -86,7 +86,13 @@ class TaskTile extends ConsumerWidget {
               : Icons.autorenew,
           interval.describe());
     }
-    if (task.hasAlarm && !task.isDone) addIconText(Icons.alarm, '');
+    if (task.snoozedUntil != null &&
+        task.snoozedUntil!.isAfter(DateTime.now())) {
+      addIconText(Icons.snooze, formatDue(task.snoozedUntil!),
+          color: theme.colorScheme.tertiary);
+    } else if (task.hasAlarm && !task.isDone) {
+      addIconText(Icons.alarm, '');
+    }
     if (subtasks != null && subtasks.isNotEmpty) {
       addText('${subtasks.where((s) => s.isDone).length}/${subtasks.length}');
     }

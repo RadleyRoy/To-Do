@@ -58,37 +58,18 @@ class ListsHomeScreen extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                   child: Text('My lists', style: theme.textTheme.titleSmall),
                 ),
-                ...switch (lists) {
-                  AsyncData(:final value) when value.isEmpty => [
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'No lists yet. Tap + to create one.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium!
-                              .copyWith(color: theme.colorScheme.outline),
-                        ),
-                      )
-                    ],
-                  AsyncData(:final value) => [
-                      for (final entry in value)
-                        ListTile(
-                          leading: Icon(Icons.list_alt,
-                              color: theme.colorScheme.secondary),
-                          title: Text(entry.list.name),
-                          trailing: Text(
-                              '${entry.doneTasks}/${entry.totalTasks}',
-                              style: theme.textTheme.bodySmall),
-                          onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => ListDetailScreen(
-                                      listId: entry.list.id))),
-                          onLongPress: () =>
-                              _showListMenu(context, ref, entry.list),
-                        ),
-                    ],
-                  _ => [const Center(child: CircularProgressIndicator())],
+                switch (lists) {
+                  AsyncData(:final value) when value.isEmpty => Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'No lists yet. Tap + to create one.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium!
+                            .copyWith(color: theme.colorScheme.outline),
+                      ),
+                    ),
+                  AsyncData(:final value) => _ReorderableLists(entries: value),
+                  _ => const Center(child: CircularProgressIndicator()),
                 },
               ],
             ),
@@ -131,7 +112,7 @@ class ListsHomeScreen extends ConsumerWidget {
               subtitle: const Text('A checklist of items'),
               onTap: () {
                 Navigator.pop(sheetContext);
-                _promptListName(context, ref);
+                promptListName(context, ref);
               },
             ),
           ],
@@ -139,86 +120,130 @@ class ListsHomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Future<void> _promptListName(BuildContext context, WidgetRef ref,
-      {TaskList? existing}) async {
-    final controller = TextEditingController(text: existing?.name ?? '');
-    final name = await showDialog<String>(
+Future<void> promptListName(BuildContext context, WidgetRef ref,
+    {TaskList? existing}) async {
+  final controller = TextEditingController(text: existing?.name ?? '');
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(existing == null ? 'New list' : 'Rename list'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(hintText: 'List name'),
+        onSubmitted: (v) => Navigator.pop(context, v),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(existing == null ? 'Create' : 'Rename')),
+      ],
+    ),
+  );
+  final trimmed = name?.trim() ?? '';
+  if (trimmed.isEmpty) return;
+  final db = ref.read(databaseProvider);
+  if (existing == null) {
+    await db.createList(trimmed);
+  } else {
+    await db.renameList(existing.id, trimmed);
+  }
+}
+
+/// The user's lists with long-press drag-to-reorder. Keeps a local copy so
+/// the row moves instantly while the new order is persisted.
+class _ReorderableLists extends ConsumerStatefulWidget {
+  const _ReorderableLists({required this.entries});
+
+  final List<ListWithStats> entries;
+
+  @override
+  ConsumerState<_ReorderableLists> createState() => _ReorderableListsState();
+}
+
+class _ReorderableListsState extends ConsumerState<_ReorderableLists> {
+  late List<ListWithStats> _entries = widget.entries;
+
+  @override
+  void didUpdateWidget(_ReorderableLists oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _entries = widget.entries;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ReorderableListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: true,
+      onReorderItem: (oldIndex, newIndex) {
+        setState(() {
+          final moved = _entries.removeAt(oldIndex);
+          _entries.insert(newIndex, moved);
+        });
+        ref
+            .read(databaseProvider)
+            .reorderLists([for (final e in _entries) e.list.id]);
+      },
+      children: [
+        for (final entry in _entries)
+          ListTile(
+            key: ValueKey('list-${entry.list.id}'),
+            leading: Icon(Icons.list_alt, color: theme.colorScheme.secondary),
+            title: Text(entry.list.name),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${entry.doneTasks}/${entry.totalTasks}',
+                    style: theme.textTheme.bodySmall),
+                PopupMenuButton<String>(
+                  onSelected: (choice) => switch (choice) {
+                    'rename' =>
+                        promptListName(context, ref, existing: entry.list),
+                    _ => _confirmDeleteList(context, entry.list),
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'rename', child: Text('Rename')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ListDetailScreen(listId: entry.list.id))),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _confirmDeleteList(BuildContext context, TaskList list) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(existing == null ? 'New list' : 'Rename list'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'List name'),
-          onSubmitted: (v) => Navigator.pop(context, v),
-        ),
+        title: Text('Delete "${list.name}"?'),
+        content: const Text('All tasks in this list will be deleted.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
           FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text),
-              child: Text(existing == null ? 'Create' : 'Rename')),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
         ],
       ),
     );
-    final trimmed = name?.trim() ?? '';
-    if (trimmed.isEmpty) return;
-    final db = ref.read(databaseProvider);
-    if (existing == null) {
-      await db.createList(trimmed);
-    } else {
-      await db.renameList(existing.id, trimmed);
+    if (confirmed == true) {
+      await ref.read(databaseProvider).deleteList(list.id);
     }
-  }
-
-  void _showListMenu(BuildContext context, WidgetRef ref, TaskList list) {
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Rename'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _promptListName(context, ref, existing: list);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Delete list'),
-              onTap: () async {
-                Navigator.pop(sheetContext);
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text('Delete "${list.name}"?'),
-                    content:
-                        const Text('All tasks in this list will be deleted.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel')),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete')),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  await ref.read(databaseProvider).deleteList(list.id);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

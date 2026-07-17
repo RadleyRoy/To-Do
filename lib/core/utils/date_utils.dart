@@ -26,6 +26,15 @@ String formatDue(DateTime due, {DateTime? now}) {
   return '$date$time';
 }
 
+/// Non-relative form ("Fri, 17 Jul 18:00") — for text rendered now but read
+/// later, like notification bodies.
+String formatDueAbsolute(DateTime due) {
+  final time = due.hour == 0 && due.minute == 0
+      ? ''
+      : ' ${DateFormat.Hm().format(due)}';
+  return '${DateFormat('EEE, d MMM').format(due)}$time';
+}
+
 String formatDayHeader(DateTime day, {DateTime? now}) {
   final ref = now ?? DateTime.now();
   if (isSameDay(day, ref)) return 'Today';
