@@ -78,12 +78,25 @@ Release builds are signed with a keystore provided via GitHub secrets. Without
 the secrets, builds fall back to debug signing (fine for local testing).
 
 1. Generate a keystore (keep it safe; losing it means you can't update the
-   installed app):
+   installed app). `keytool` ships with the JDK — if it's not on your PATH,
+   call it from `<your JDK>\bin\keytool.exe` (Android Studio bundles one at
+   `C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe`).
+
+   Windows (PowerShell, one line):
+
+   ```powershell
+   & "C:\path\to\jdk\bin\keytool.exe" -genkeypair -v -keystore taskley.jks -keyalg RSA -keysize 2048 -validity 10000 -alias taskley -storepass "YOUR_PASSWORD" -dname "CN=YourName"
+   ```
+
+   Linux / macOS:
 
    ```sh
    keytool -genkeypair -v -keystore taskley.jks -keyalg RSA -keysize 2048 \
      -validity 10000 -alias taskley
    ```
+
+   Modern JDKs create PKCS12 keystores where the key password is the same as
+   the store password — use one value for both password secrets below.
 
 2. Add four **repository secrets** (Settings → Secrets and variables →
    Actions):
