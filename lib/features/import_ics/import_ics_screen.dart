@@ -31,7 +31,7 @@ class _ImportIcsScreenState extends ConsumerState<ImportIcsScreen> {
 
   Future<void> _pickFile() async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await FilePicker.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(withData: true);
     final file = result?.files.singleOrNull;
     if (file == null) return;
     final bytes = file.bytes;

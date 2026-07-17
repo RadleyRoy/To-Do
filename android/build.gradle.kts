@@ -19,6 +19,19 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Some plugins (e.g. file_picker) pin an old compileSdk; raise them to the
+// app's level so AAR metadata checks pass. :app is skipped — it is already
+// evaluated (evaluationDependsOn above) and uses flutter.compileSdkVersion.
+subprojects {
+    if (name != "app") {
+        afterEvaluate {
+            extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)?.let {
+                if ((it.compileSdk ?: 0) < 36) it.compileSdk = 36
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

@@ -32,7 +32,7 @@ class BackupService {
   /// Saves the backup through the system file picker. Returns the chosen
   /// location, or null if the user cancelled.
   Future<String?> exportToFile() async {
-    return FilePicker.saveFile(
+    return FilePicker.platform.saveFile(
       fileName: _fileName(),
       type: FileType.custom,
       allowedExtensions: const ['json'],
@@ -54,7 +54,7 @@ class BackupService {
   /// Picks a backup file and replaces all data with it. Returns false if the
   /// user cancelled the picker. Throws [FormatException] on invalid files.
   Future<bool> restoreFromFile() async {
-    final result = await FilePicker.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(withData: true);
     final bytes = result?.files.singleOrNull?.bytes;
     if (bytes == null) return false;
     final dynamic decoded;
