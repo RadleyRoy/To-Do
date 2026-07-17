@@ -269,10 +269,15 @@ class AppDatabase extends _$AppDatabase {
             previousDue: task.dueAt ?? at,
             interval: interval,
           ),
+        // "after" must cover the occurrence being completed, not just the
+        // current moment — completing today's 21:00 task at 14:00 should
+        // still advance the schedule past 21:00.
         RecurrenceType.fixedSchedule => nextFixed(
             anchor: task.anchorDate ?? task.dueAt ?? at,
             interval: interval,
-            after: at,
+            after: (task.dueAt != null && task.dueAt!.isAfter(at))
+                ? task.dueAt!
+                : at,
           ),
         RecurrenceType.none => throw StateError('unreachable'),
       };

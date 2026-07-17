@@ -1,7 +1,7 @@
 name: taskley
 description: "Taskley — an offline-first to-do app with checklists, smart recurring tasks, alarms, and a calendar view."
 publish_to: 'none'
-version: 0.2.0+2
+version: 0.2.1+3
 
 environment:
   sdk: ^3.12.2
@@ -29,6 +29,17 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.34.4
   build_runner: ^2.15.1
+  flutter_launcher_icons: 0.14.0
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/taskley-mark-1024.png"
+  adaptive_icon_background: "#FCFCFC"
+  adaptive_icon_foreground: "assets/icon/taskley-mark-1024.png"
+  # Keep the check inside the adaptive-icon safe zone.
+  adaptive_icon_foreground_inset: 20
+  min_sdk_android: 33

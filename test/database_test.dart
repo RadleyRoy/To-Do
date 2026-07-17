@@ -79,6 +79,25 @@ void main() {
       expect(history.first.dueAtSnapshot, DateTime(2026, 3, 1, 9, 0));
     });
 
+    test('completing a fixed task before its due time still advances it',
+        () async {
+      // Regression: task due today 21:00, every 2 months fixed, completed at
+      // 14:00 the same day — the next occurrence must be 2 months out, not
+      // today 21:00 again.
+      final taskId = await db.insertTask(TasksCompanion.insert(
+        title: 'Deep clean',
+        dueAt: Value(DateTime(2026, 7, 17, 21, 0)),
+        anchorDate: Value(DateTime(2026, 7, 17, 21, 0)),
+        recurrenceType: const Value(RecurrenceType.fixedSchedule),
+        intervalCount: const Value(2),
+        intervalUnit: const Value(IntervalUnit.month),
+      ));
+
+      final task = await db.completeTask((await db.getTask(taskId))!,
+          now: DateTime(2026, 7, 17, 14, 0));
+      expect(task.dueAt, DateTime(2026, 9, 17, 21, 0));
+    });
+
     test('fixedSchedule keeps the calendar anchor', () async {
       final taskId = await db.insertTask(TasksCompanion.insert(
         title: "Mom's birthday",

@@ -15,7 +15,8 @@ class TaskleyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const seed = Color(0xFF3D6BFF);
+    // Taskley brand violet — matches the launcher icon.
+    const seed = Color(0xFF5D38F5);
     return MaterialApp(
       title: 'Taskley',
       theme: ThemeData(

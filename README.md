@@ -1,4 +1,7 @@
-# Taskley
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/taskley-logo-dark-1560.png">
+  <img alt="Taskley" src="docs/taskley-logo-light-1560.png" width="390">
+</picture>
 
 [![CI](https://github.com/RadleyRoy/To-Do/actions/workflows/ci.yml/badge.svg)](https://github.com/RadleyRoy/To-Do/actions/workflows/ci.yml)
 [![Release](https://github.com/RadleyRoy/To-Do/actions/workflows/release.yml/badge.svg)](https://github.com/RadleyRoy/To-Do/actions/workflows/release.yml)

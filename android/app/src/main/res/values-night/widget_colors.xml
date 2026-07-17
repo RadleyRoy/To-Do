@@ -2,5 +2,5 @@
 <resources>
     <color name="widget_background">#F2202124</color>
     <color name="widget_text">#E3E3E7</color>
-    <color name="widget_accent">#AFC4FF</color>
+    <color name="widget_accent">#C9BBFF</color>
 </resources>
