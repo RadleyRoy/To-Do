@@ -293,6 +293,10 @@ class AppDatabase extends _$AppDatabase {
         taskId: taskId, title: title, position: Value(position)));
   }
 
+  Future<void> updateSubtaskTitle(int id, String title) =>
+      (update(subtasks)..where((s) => s.id.equals(id)))
+          .write(SubtasksCompanion(title: Value(title)));
+
   Future<void> setSubtaskDone(int id, bool isDone) =>
       (update(subtasks)..where((s) => s.id.equals(id)))
           .write(SubtasksCompanion(isDone: Value(isDone)));
