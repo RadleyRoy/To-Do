@@ -209,12 +209,12 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Alarm'),
+              title: const Text('Notification'),
               subtitle: Text(_dueDate == null
                   ? 'Set a date first'
                   : _dueTime == null
-                      ? 'Rings at midnight — add a time'
-                      : 'Rings at the scheduled time'),
+                      ? 'Notifies at midnight — add a time'
+                      : 'Sent at the scheduled time'),
               value: _hasAlarm,
               onChanged: _dueDate == null
                   ? null
@@ -455,6 +455,7 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
               updated.dueAt != null
           ? 'Done ${formatDue(completedAt)} — next: ${formatDue(updated.dueAt!)}'
           : 'Completed "${widget.task!.title}"'),
+      duration: const Duration(seconds: 15),
       action: SnackBarAction(
           label: 'Undo', onPressed: () => actions.uncomplete(updated)),
     ));
@@ -478,7 +479,14 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
     );
     if (confirmed != true || !mounted) return;
     final navigator = Navigator.of(context);
-    await ref.read(taskActionsProvider).delete(widget.task!);
+    final messenger = ScaffoldMessenger.of(context);
+    final undo = await ref.read(taskActionsProvider).delete(widget.task!);
     if (mounted) navigator.pop();
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text('Deleted "${widget.task!.title}"'),
+      duration: const Duration(seconds: 15),
+      action: SnackBarAction(label: 'Undo', onPressed: undo),
+    ));
   }
 }

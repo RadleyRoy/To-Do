@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../db/database.dart';
+import '../recurrence/recurrence_engine.dart';
 import '../utils/date_utils.dart';
 import '../widget/home_widget_service.dart';
 
@@ -15,7 +16,9 @@ const kActionSnooze = 'snooze';
 /// Handles the "Done" notification button while the app may not be running.
 /// Runs in its own isolate: opens its own database connection, completes the
 /// task, schedules the next reminder for recurring tasks, refreshes the
-/// home-screen widget.
+/// home-screen widget. Deliberately does a minimal setup (no full init():
+/// re-registering callbacks or querying launch details doesn't belong in the
+/// background isolate).
 @pragma('vm:entry-point')
 Future<void> notificationBackgroundHandler(NotificationResponse response) async {
   if (response.actionId != kActionDone) return;
@@ -26,10 +29,19 @@ Future<void> notificationBackgroundHandler(NotificationResponse response) async 
   try {
     final task = await db.getTask(taskId);
     if (task == null) return;
-    final service = NotificationService();
-    await service.init();
     final updated = await db.completeTask(task);
-    await service.syncTaskReminder(updated);
+
+    if (updated.recurrenceType != RecurrenceType.none) {
+      try {
+        final service = NotificationService();
+        await service._initForBackground();
+        await service.syncTaskReminder(updated);
+      } catch (e) {
+        // Next app start reschedules everything; completing the task is the
+        // part that must not fail.
+        debugPrint('Rescheduling from background failed: $e');
+      }
+    }
     await HomeWidgetService().refresh(db);
   } catch (e) {
     debugPrint('Notification action failed: $e');
@@ -87,6 +99,23 @@ class NotificationService {
     final tap = _launchTap;
     _launchTap = null;
     return tap;
+  }
+
+  /// Minimal setup for the notification-action background isolate: timezone
+  /// data plus a bare plugin initialize so zonedSchedule/cancel work.
+  Future<void> _initForBackground() async {
+    tz_data.initializeTimeZones();
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      debugPrint('Could not resolve local timezone: $e');
+    }
+    await _plugin.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+    );
   }
 
   AndroidFlutterLocalNotificationsPlugin? get _android =>

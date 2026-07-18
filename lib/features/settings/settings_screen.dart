@@ -128,13 +128,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   color: ok ? null : theme.colorScheme.error,
                 ),
                 title: Text(ok
-                    ? 'Alarms are ready'
+                    ? 'Notifications are ready'
                     : !enabled
                         ? 'Notifications are off'
-                        : 'Exact alarms are off'),
+                        : 'Exact timing is off'),
                 subtitle: Text(ok
-                    ? 'Task alarms will ring at the exact time'
-                    : 'Tap to grant permission so alarms can ring'),
+                    ? 'Task reminders appear exactly on time'
+                    : 'Tap to grant permission so reminders can appear'),
                 onTap: ok
                     ? null
                     : () async {
@@ -149,7 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Taskley'),
-            subtitle: Text('Version 0.2.1 · offline to-do app\ncreated by Radley'),
+            subtitle: Text('Version 0.2.2 · offline to-do app\ncreated by Radley'),
           ),
         ],
       ),

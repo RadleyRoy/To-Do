@@ -23,10 +23,10 @@ on your phone in a local SQLite database — no account, no cloud, no tracking.
     the next one is 6 months from *when you actually did it*.
   - **Fixed schedule** — "Mom's birthday every year". Completing it late
     never shifts the schedule.
-- **Alarms** — exact, survive reboots, fire even in Doze mode (Android 13+).
-  **Mark done or snooze straight from the notification** (15 min, 1 h, 1 day,
-  or 1 week), and set a "remind me before" offset (e.g. 1 day before the due
-  date).
+- **Notifications** — exactly on time, survive reboots, appear even in Doze
+  mode (Android 13+). **Mark done or snooze straight from the notification**
+  (15 min, 1 h, 1 day, or 1 week), and set a "remind me before" offset
+  (e.g. 1 day before the due date).
 - **Home-screen widget** — today's tasks at a glance; taps open the app.
 - **Drag-and-drop reordering** — long-press to reorder lists and list items.
 - **Backdated completion** — "I actually did this last Tuesday": complete a

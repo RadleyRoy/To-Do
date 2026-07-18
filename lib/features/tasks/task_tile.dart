@@ -113,6 +113,7 @@ class TaskTile extends ConsumerWidget {
       content: Text(recurring && updated.dueAt != null
           ? 'Done — next: ${formatDue(updated.dueAt!)}'
           : 'Completed "${task.title}"'),
+      duration: const Duration(seconds: 15),
       action: SnackBarAction(
         label: 'Undo',
         onPressed: () => actions.uncomplete(updated),
@@ -125,8 +126,12 @@ class TaskTile extends ConsumerWidget {
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    await ref.read(taskActionsProvider).delete(task);
+    final undo = await ref.read(taskActionsProvider).delete(task);
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text('Deleted "${task.title}"')));
+    messenger.showSnackBar(SnackBar(
+      content: Text('Deleted "${task.title}"'),
+      duration: const Duration(seconds: 15),
+      action: SnackBarAction(label: 'Undo', onPressed: undo),
+    ));
   }
 }

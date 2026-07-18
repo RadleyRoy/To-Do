@@ -1596,12 +1596,24 @@ class $CompletionsTable extends Completions
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _snoozedUntilSnapshotMeta =
+      const VerificationMeta('snoozedUntilSnapshot');
+  @override
+  late final GeneratedColumn<DateTime> snoozedUntilSnapshot =
+      GeneratedColumn<DateTime>(
+        'snoozed_until_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     taskId,
     completedAt,
     dueAtSnapshot,
+    snoozedUntilSnapshot,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1646,6 +1658,15 @@ class $CompletionsTable extends Completions
         ),
       );
     }
+    if (data.containsKey('snoozed_until_snapshot')) {
+      context.handle(
+        _snoozedUntilSnapshotMeta,
+        snoozedUntilSnapshot.isAcceptableOrUnknown(
+          data['snoozed_until_snapshot']!,
+          _snoozedUntilSnapshotMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1671,6 +1692,10 @@ class $CompletionsTable extends Completions
         DriftSqlType.dateTime,
         data['${effectivePrefix}due_at_snapshot'],
       ),
+      snoozedUntilSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}snoozed_until_snapshot'],
+      ),
     );
   }
 
@@ -1687,11 +1712,15 @@ class Completion extends DataClass implements Insertable<Completion> {
 
   /// What the task's dueAt was when it got completed.
   final DateTime? dueAtSnapshot;
+
+  /// The task's snooze at completion time, so undo can restore it.
+  final DateTime? snoozedUntilSnapshot;
   const Completion({
     required this.id,
     required this.taskId,
     required this.completedAt,
     this.dueAtSnapshot,
+    this.snoozedUntilSnapshot,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1701,6 +1730,9 @@ class Completion extends DataClass implements Insertable<Completion> {
     map['completed_at'] = Variable<DateTime>(completedAt);
     if (!nullToAbsent || dueAtSnapshot != null) {
       map['due_at_snapshot'] = Variable<DateTime>(dueAtSnapshot);
+    }
+    if (!nullToAbsent || snoozedUntilSnapshot != null) {
+      map['snoozed_until_snapshot'] = Variable<DateTime>(snoozedUntilSnapshot);
     }
     return map;
   }
@@ -1713,6 +1745,9 @@ class Completion extends DataClass implements Insertable<Completion> {
       dueAtSnapshot: dueAtSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(dueAtSnapshot),
+      snoozedUntilSnapshot: snoozedUntilSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozedUntilSnapshot),
     );
   }
 
@@ -1726,6 +1761,9 @@ class Completion extends DataClass implements Insertable<Completion> {
       taskId: serializer.fromJson<int>(json['taskId']),
       completedAt: serializer.fromJson<DateTime>(json['completedAt']),
       dueAtSnapshot: serializer.fromJson<DateTime?>(json['dueAtSnapshot']),
+      snoozedUntilSnapshot: serializer.fromJson<DateTime?>(
+        json['snoozedUntilSnapshot'],
+      ),
     );
   }
   @override
@@ -1736,6 +1774,9 @@ class Completion extends DataClass implements Insertable<Completion> {
       'taskId': serializer.toJson<int>(taskId),
       'completedAt': serializer.toJson<DateTime>(completedAt),
       'dueAtSnapshot': serializer.toJson<DateTime?>(dueAtSnapshot),
+      'snoozedUntilSnapshot': serializer.toJson<DateTime?>(
+        snoozedUntilSnapshot,
+      ),
     };
   }
 
@@ -1744,6 +1785,7 @@ class Completion extends DataClass implements Insertable<Completion> {
     int? taskId,
     DateTime? completedAt,
     Value<DateTime?> dueAtSnapshot = const Value.absent(),
+    Value<DateTime?> snoozedUntilSnapshot = const Value.absent(),
   }) => Completion(
     id: id ?? this.id,
     taskId: taskId ?? this.taskId,
@@ -1751,6 +1793,9 @@ class Completion extends DataClass implements Insertable<Completion> {
     dueAtSnapshot: dueAtSnapshot.present
         ? dueAtSnapshot.value
         : this.dueAtSnapshot,
+    snoozedUntilSnapshot: snoozedUntilSnapshot.present
+        ? snoozedUntilSnapshot.value
+        : this.snoozedUntilSnapshot,
   );
   Completion copyWithCompanion(CompletionsCompanion data) {
     return Completion(
@@ -1762,6 +1807,9 @@ class Completion extends DataClass implements Insertable<Completion> {
       dueAtSnapshot: data.dueAtSnapshot.present
           ? data.dueAtSnapshot.value
           : this.dueAtSnapshot,
+      snoozedUntilSnapshot: data.snoozedUntilSnapshot.present
+          ? data.snoozedUntilSnapshot.value
+          : this.snoozedUntilSnapshot,
     );
   }
 
@@ -1771,13 +1819,15 @@ class Completion extends DataClass implements Insertable<Completion> {
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('completedAt: $completedAt, ')
-          ..write('dueAtSnapshot: $dueAtSnapshot')
+          ..write('dueAtSnapshot: $dueAtSnapshot, ')
+          ..write('snoozedUntilSnapshot: $snoozedUntilSnapshot')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, taskId, completedAt, dueAtSnapshot);
+  int get hashCode =>
+      Object.hash(id, taskId, completedAt, dueAtSnapshot, snoozedUntilSnapshot);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1785,7 +1835,8 @@ class Completion extends DataClass implements Insertable<Completion> {
           other.id == this.id &&
           other.taskId == this.taskId &&
           other.completedAt == this.completedAt &&
-          other.dueAtSnapshot == this.dueAtSnapshot);
+          other.dueAtSnapshot == this.dueAtSnapshot &&
+          other.snoozedUntilSnapshot == this.snoozedUntilSnapshot);
 }
 
 class CompletionsCompanion extends UpdateCompanion<Completion> {
@@ -1793,17 +1844,20 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
   final Value<int> taskId;
   final Value<DateTime> completedAt;
   final Value<DateTime?> dueAtSnapshot;
+  final Value<DateTime?> snoozedUntilSnapshot;
   const CompletionsCompanion({
     this.id = const Value.absent(),
     this.taskId = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.dueAtSnapshot = const Value.absent(),
+    this.snoozedUntilSnapshot = const Value.absent(),
   });
   CompletionsCompanion.insert({
     this.id = const Value.absent(),
     required int taskId,
     required DateTime completedAt,
     this.dueAtSnapshot = const Value.absent(),
+    this.snoozedUntilSnapshot = const Value.absent(),
   }) : taskId = Value(taskId),
        completedAt = Value(completedAt);
   static Insertable<Completion> custom({
@@ -1811,12 +1865,15 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     Expression<int>? taskId,
     Expression<DateTime>? completedAt,
     Expression<DateTime>? dueAtSnapshot,
+    Expression<DateTime>? snoozedUntilSnapshot,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (taskId != null) 'task_id': taskId,
       if (completedAt != null) 'completed_at': completedAt,
       if (dueAtSnapshot != null) 'due_at_snapshot': dueAtSnapshot,
+      if (snoozedUntilSnapshot != null)
+        'snoozed_until_snapshot': snoozedUntilSnapshot,
     });
   }
 
@@ -1825,12 +1882,14 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     Value<int>? taskId,
     Value<DateTime>? completedAt,
     Value<DateTime?>? dueAtSnapshot,
+    Value<DateTime?>? snoozedUntilSnapshot,
   }) {
     return CompletionsCompanion(
       id: id ?? this.id,
       taskId: taskId ?? this.taskId,
       completedAt: completedAt ?? this.completedAt,
       dueAtSnapshot: dueAtSnapshot ?? this.dueAtSnapshot,
+      snoozedUntilSnapshot: snoozedUntilSnapshot ?? this.snoozedUntilSnapshot,
     );
   }
 
@@ -1849,6 +1908,11 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
     if (dueAtSnapshot.present) {
       map['due_at_snapshot'] = Variable<DateTime>(dueAtSnapshot.value);
     }
+    if (snoozedUntilSnapshot.present) {
+      map['snoozed_until_snapshot'] = Variable<DateTime>(
+        snoozedUntilSnapshot.value,
+      );
+    }
     return map;
   }
 
@@ -1858,7 +1922,8 @@ class CompletionsCompanion extends UpdateCompanion<Completion> {
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('completedAt: $completedAt, ')
-          ..write('dueAtSnapshot: $dueAtSnapshot')
+          ..write('dueAtSnapshot: $dueAtSnapshot, ')
+          ..write('snoozedUntilSnapshot: $snoozedUntilSnapshot')
           ..write(')'))
         .toString();
   }
@@ -3517,6 +3582,7 @@ typedef $$CompletionsTableCreateCompanionBuilder =
       required int taskId,
       required DateTime completedAt,
       Value<DateTime?> dueAtSnapshot,
+      Value<DateTime?> snoozedUntilSnapshot,
     });
 typedef $$CompletionsTableUpdateCompanionBuilder =
     CompletionsCompanion Function({
@@ -3524,6 +3590,7 @@ typedef $$CompletionsTableUpdateCompanionBuilder =
       Value<int> taskId,
       Value<DateTime> completedAt,
       Value<DateTime?> dueAtSnapshot,
+      Value<DateTime?> snoozedUntilSnapshot,
     });
 
 final class $$CompletionsTableReferences
@@ -3569,6 +3636,11 @@ class $$CompletionsTableFilterComposer
 
   ColumnFilters<DateTime> get dueAtSnapshot => $composableBuilder(
     column: $table.dueAtSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get snoozedUntilSnapshot => $composableBuilder(
+    column: $table.snoozedUntilSnapshot,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3620,6 +3692,11 @@ class $$CompletionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get snoozedUntilSnapshot => $composableBuilder(
+    column: $table.snoozedUntilSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$TasksTableOrderingComposer get taskId {
     final $$TasksTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3663,6 +3740,11 @@ class $$CompletionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get dueAtSnapshot => $composableBuilder(
     column: $table.dueAtSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get snoozedUntilSnapshot => $composableBuilder(
+    column: $table.snoozedUntilSnapshot,
     builder: (column) => column,
   );
 
@@ -3722,11 +3804,13 @@ class $$CompletionsTableTableManager
                 Value<int> taskId = const Value.absent(),
                 Value<DateTime> completedAt = const Value.absent(),
                 Value<DateTime?> dueAtSnapshot = const Value.absent(),
+                Value<DateTime?> snoozedUntilSnapshot = const Value.absent(),
               }) => CompletionsCompanion(
                 id: id,
                 taskId: taskId,
                 completedAt: completedAt,
                 dueAtSnapshot: dueAtSnapshot,
+                snoozedUntilSnapshot: snoozedUntilSnapshot,
               ),
           createCompanionCallback:
               ({
@@ -3734,11 +3818,13 @@ class $$CompletionsTableTableManager
                 required int taskId,
                 required DateTime completedAt,
                 Value<DateTime?> dueAtSnapshot = const Value.absent(),
+                Value<DateTime?> snoozedUntilSnapshot = const Value.absent(),
               }) => CompletionsCompanion.insert(
                 id: id,
                 taskId: taskId,
                 completedAt: completedAt,
                 dueAtSnapshot: dueAtSnapshot,
+                snoozedUntilSnapshot: snoozedUntilSnapshot,
               ),
           withReferenceMapper: (p0) => p0
               .map(

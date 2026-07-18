@@ -45,6 +45,22 @@ void main() {
       expect(stats.first.doneTasks, 1);
     });
 
+    test('restoreTask brings back a deleted task with its subtasks', () async {
+      final listId = await db.createList('Groceries');
+      final taskId = await db.insertTask(TasksCompanion.insert(
+          title: 'Eggs', listId: Value(listId)));
+      await db.addSubtask(taskId, 'Free range');
+
+      final task = (await db.getTask(taskId))!;
+      final subs = await db.getSubtasks(taskId);
+      await db.deleteTask(taskId);
+      expect(await db.getTask(taskId), isNull);
+
+      await db.restoreTask(task, subs);
+      expect((await db.getTask(taskId))!.title, 'Eggs');
+      expect((await db.getSubtasks(taskId)).single.title, 'Free range');
+    });
+
     test('deleting a list cascades to its tasks and subtasks', () async {
       final listId = await db.createList('Groceries');
       final taskId = await db.insertTask(
@@ -133,6 +149,42 @@ void main() {
   });
 
   group('snooze', () {
+    test('undoing a recurring completion restores the snooze', () async {
+      final taskId = await db.insertTask(TasksCompanion.insert(
+        title: 'Water plants',
+        dueAt: Value(DateTime(2026, 7, 1, 8, 0)),
+        hasAlarm: const Value(true),
+        recurrenceType: const Value(RecurrenceType.afterCompletion),
+        intervalCount: const Value(3),
+        intervalUnit: const Value(IntervalUnit.day),
+      ));
+      final snoozed = DateTime(2026, 7, 1, 9, 0);
+      var task = await db.snoozeTask(taskId, snoozed);
+
+      task = await db.completeTask(task, now: DateTime(2026, 7, 1, 8, 30));
+      expect(task.snoozedUntil, isNull);
+
+      task = await db.uncompleteTask(task);
+      expect(task.snoozedUntil, snoozed);
+      expect(task.dueAt, DateTime(2026, 7, 1, 8, 0));
+    });
+
+    test('completing and undoing a plain task keeps the snooze', () async {
+      final taskId = await db.insertTask(TasksCompanion.insert(
+        title: 'Buy milk',
+        dueAt: Value(DateTime(2026, 7, 1, 18, 0)),
+        hasAlarm: const Value(true),
+      ));
+      final snoozed = DateTime(2026, 7, 1, 19, 0);
+      var task = await db.snoozeTask(taskId, snoozed);
+
+      task = await db.completeTask(task);
+      expect(task.isDone, isTrue);
+
+      task = await db.uncompleteTask(task);
+      expect(task.snoozedUntil, snoozed);
+    });
+
     test('snoozeTask sets snoozedUntil and completing clears it', () async {
       final taskId = await db.insertTask(TasksCompanion.insert(
         title: 'Water plants',

@@ -67,6 +67,9 @@ class Completions extends Table {
 
   /// What the task's dueAt was when it got completed.
   DateTimeColumn get dueAtSnapshot => dateTime().nullable()();
+
+  /// The task's snooze at completion time, so undo can restore it.
+  DateTimeColumn get snoozedUntilSnapshot => dateTime().nullable()();
 }
 
 /// UIDs of calendar events already imported, so re-importing an .ics file
@@ -95,7 +98,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.open() : super(driftDatabase(name: 'taskley'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +106,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.addColumn(tasks, tasks.reminderOffsetMinutes);
             await m.addColumn(tasks, tasks.snoozedUntil);
+          }
+          if (from < 3) {
+            await m.addColumn(completions, completions.snoozedUntilSnapshot);
           }
         },
         beforeOpen: (details) async {
@@ -227,6 +233,16 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteTask(int id) =>
       (delete(tasks)..where((t) => t.id.equals(id))).go();
 
+  /// Re-inserts a deleted task and its subtasks with their original ids —
+  /// the "undo" of deleteTask.
+  Future<void> restoreTask(Task task, List<Subtask> taskSubtasks) =>
+      transaction(() async {
+        await into(tasks).insert(task.toCompanion(false));
+        for (final sub in taskSubtasks) {
+          await into(subtasks).insert(sub.toCompanion(false));
+        }
+      });
+
   /// Persists a drag-and-drop ordering of tasks within a list.
   Future<void> reorderTasks(List<int> orderedIds) => batch((b) {
         for (final (index, id) in orderedIds.indexed) {
@@ -252,8 +268,9 @@ class AppDatabase extends _$AppDatabase {
     final at = now ?? DateTime.now();
     return transaction(() async {
       if (task.recurrenceType == RecurrenceType.none) {
-        await updateTask(task.id,
-            const TasksCompanion(isDone: Value(true), snoozedUntil: Value(null)));
+        // The snooze is kept: isDone already blocks the reminder, and undo
+        // should bring the task back exactly as it was.
+        await updateTask(task.id, const TasksCompanion(isDone: Value(true)));
         return (await getTask(task.id))!;
       }
       final interval =
@@ -262,6 +279,7 @@ class AppDatabase extends _$AppDatabase {
         taskId: task.id,
         completedAt: at,
         dueAtSnapshot: Value(task.dueAt),
+        snoozedUntilSnapshot: Value(task.snoozedUntil),
       ));
       final nextDue = switch (task.recurrenceType) {
         RecurrenceType.afterCompletion => nextAfterCompletion(
@@ -307,7 +325,7 @@ class AppDatabase extends _$AppDatabase {
             task.id,
             TasksCompanion(
                 dueAt: Value(latest.dueAtSnapshot),
-                snoozedUntil: const Value(null)));
+                snoozedUntil: Value(latest.snoozedUntilSnapshot)));
       }
       return (await getTask(task.id))!;
     });
@@ -370,7 +388,7 @@ class AppDatabase extends _$AppDatabase {
   // Backup / restore
   // ---------------------------------------------------------------------
 
-  static const backupSchemaVersion = 2;
+  static const backupSchemaVersion = 3;
 
   Future<Map<String, dynamic>> exportData() async {
     final lists = await select(taskLists).get();

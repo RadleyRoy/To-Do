@@ -56,10 +56,18 @@ class TaskActions {
     return updated;
   }
 
-  Future<void> delete(Task task) async {
+  /// Deletes [task] and returns an undo closure that restores it (with its
+  /// subtasks) exactly as it was.
+  Future<Future<void> Function()> delete(Task task) async {
+    final subtasks = await _db.getSubtasks(task.id);
     await _db.deleteTask(task.id);
     await _notifications.cancelTaskReminder(task.id);
     await _refreshWidget();
+    return () async {
+      await _db.restoreTask(task, subtasks);
+      await _notifications.syncTaskReminder(task);
+      await _refreshWidget();
+    };
   }
 
   Future<int> addChecklistItem(int listId, String title) async {

@@ -44,6 +44,6 @@ Future<void> showSnoozeSheet(
   if (context.mounted && updated.snoozedUntil != null) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:
-            Text('Snoozed — rings ${formatDue(updated.snoozedUntil!)}')));
+            Text('Snoozed — notifies ${formatDue(updated.snoozedUntil!)}')));
   }
 }
