@@ -456,6 +456,7 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
           ? 'Done ${formatDue(completedAt)} — next: ${formatDue(updated.dueAt!)}'
           : 'Completed "${widget.task!.title}"'),
       duration: const Duration(seconds: 15),
+      persist: false,
       action: SnackBarAction(
           label: 'Undo', onPressed: () => actions.uncomplete(updated)),
     ));
@@ -486,6 +487,7 @@ class _TaskEditorSheetState extends ConsumerState<TaskEditorSheet> {
     messenger.showSnackBar(SnackBar(
       content: Text('Deleted "${widget.task!.title}"'),
       duration: const Duration(seconds: 15),
+      persist: false,
       action: SnackBarAction(label: 'Undo', onPressed: undo),
     ));
   }

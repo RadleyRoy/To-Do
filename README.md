@@ -38,8 +38,8 @@ on your phone in a local SQLite database — no account, no cloud, no tracking.
 - **Google Calendar import** — one-time migration from an exported `.ics`
   file, fully offline. Yearly events (birthdays) can be imported as
   fixed-schedule recurring tasks. Re-importing never duplicates.
-- **Backup / restore** — export everything to a JSON file (save or share),
-  restore it on any device.
+- **Backup / restore** — export everything to a JSON file (saved wherever you
+  choose, including Drive) and restore it on any device.
 - **Today / Upcoming** smart views, dark mode, Material 3.
 
 ## Getting started
@@ -122,11 +122,15 @@ the secrets, builds fall back to debug signing (fine for local testing).
 For local release builds, create `android/key.properties` (gitignored):
 
 ```properties
-storeFile=/absolute/path/to/taskley.jks
+storeFile=D:/path/to/taskley.jks
 storePassword=...
 keyAlias=taskley
 keyPassword=...
 ```
+
+> **On Windows, use forward slashes in `storeFile`.** `.properties` files treat
+> `\` as an escape character, so `D:\...\taskley.jks` silently turns `\t` into a
+> tab and the build fails with "Keystore file ... not found".
 
 ## Architecture
 
@@ -137,6 +141,23 @@ keyPassword=...
 | Notifications | flutter_local_notifications with exact alarms (`USE_EXACT_ALARM`), rescheduled after reboot |
 | Calendar UI | table_calendar |
 | ICS parsing | icalendar_parser |
+
+### Known build warnings
+
+`flutter build` prints a warning that some plugins still apply the Kotlin
+Gradle Plugin, and `pub` reports packages held back by constraints. Both are
+upstream and deliberate:
+
+- **KGP warning** — `flutter_local_notifications`, `flutter_timezone`, and
+  `home_widget` still apply KGP. Setting `android.builtInKotlin=true` fails
+  because flutter_local_notifications applies it unconditionally, so the flag
+  stays `false` until those plugins migrate. Future Flutter versions will
+  require the migration; nothing is broken today.
+- **`file_picker` held at 10.x** — 11.x compiles only under built-in Kotlin,
+  so it is pinned until the above is resolved.
+- **Held-back packages** — most are pinned by the Flutter SDK itself
+  (`matcher`, `test_api`, `meta`, `vector_math`); `flutter_riverpod` 3.x needs
+  an older `analyzer` than `drift_dev`/`build_runner` allow.
 
 The recurrence engine (`lib/core/recurrence/recurrence_engine.dart`) is pure
 Dart with no Flutter dependencies. Date arithmetic clamps to month ends

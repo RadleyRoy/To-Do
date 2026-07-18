@@ -161,6 +161,28 @@ void main() {
     await unmountApp(tester);
   });
 
+  testWidgets('the undo snackbar dismisses itself after 15 seconds',
+      (tester) async {
+    await tester.runAsync(() => db.insertTask(TasksCompanion.insert(
+        title: 'Buy milk', dueAt: Value(DateTime.now()))));
+
+    await pumpApp(tester);
+    await tester.tap(find.text('Today'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsOneWidget);
+
+    // A SnackBar carrying an action defaults to persist:true, which disables
+    // the dismiss timer entirely — this fails unless persist is off.
+    await tester.pump(const Duration(seconds: 16));
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsNothing);
+
+    await unmountApp(tester);
+  });
+
   testWidgets('completing a recurring task shows the next due date',
       (tester) async {
     final due = DateTime.now().add(const Duration(hours: 1));

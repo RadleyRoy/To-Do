@@ -36,9 +36,17 @@ class TaskTile extends ConsumerWidget {
       ),
       onDismissed: (_) => _delete(context, ref),
       child: ListTile(
+        // A checkbox is wider than the 24dp icons used as leading widgets on
+        // other screens and centres its circle inside that box. Offset the
+        // content so the circle starts on the same 16dp edge and the title
+        // lands on the same 56dp text column as every other row.
+        contentPadding: const EdgeInsets.only(left: 5, right: 16),
+        horizontalTitleGap: 11,
         leading: Checkbox(
           value: task.isDone,
           shape: const CircleBorder(),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.standard,
           onChanged: (checked) => checked == true
               ? _complete(context, ref)
               : _uncomplete(context, ref),
@@ -114,6 +122,8 @@ class TaskTile extends ConsumerWidget {
           ? 'Done — next: ${formatDue(updated.dueAt!)}'
           : 'Completed "${task.title}"'),
       duration: const Duration(seconds: 15),
+      // Without this, a snackbar carrying an action never times out.
+      persist: false,
       action: SnackBarAction(
         label: 'Undo',
         onPressed: () => actions.uncomplete(updated),
@@ -131,6 +141,7 @@ class TaskTile extends ConsumerWidget {
     messenger.showSnackBar(SnackBar(
       content: Text('Deleted "${task.title}"'),
       duration: const Duration(seconds: 15),
+      persist: false,
       action: SnackBarAction(label: 'Undo', onPressed: undo),
     ));
   }

@@ -19,35 +19,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _exportBackup() async {
-    final service = ref.read(backupServiceProvider);
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.save_alt),
-              title: const Text('Save to file'),
-              onTap: () => Navigator.pop(sheetContext, 'save'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('Share'),
-              subtitle: const Text('Send to Drive, email, ...'),
-              onTap: () => Navigator.pop(sheetContext, 'share'),
-            ),
-          ],
-        ),
-      ),
-    );
     try {
-      if (choice == 'save') {
-        final path = await service.exportToFile();
-        if (path != null) _toast('Backup saved');
-      } else if (choice == 'share') {
-        await service.shareBackup();
-      }
+      final path = await ref.read(backupServiceProvider).exportToFile();
+      if (path != null) _toast('Backup saved');
     } catch (e) {
       _toast('Backup failed: $e');
     }
@@ -102,7 +76,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.upload_file),
             title: const Text('Export backup'),
-            subtitle: const Text('Save all lists and tasks as a JSON file'),
+            subtitle:
+                const Text('Save all lists and tasks as a JSON file anywhere'),
             onTap: _exportBackup,
           ),
           ListTile(
@@ -149,7 +124,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Taskley'),
-            subtitle: Text('Version 0.2.2 · offline to-do app\ncreated by Radley'),
+            subtitle: Text('Version 1.0.0 · offline to-do app\ncreated by Radley'),
           ),
         ],
       ),
