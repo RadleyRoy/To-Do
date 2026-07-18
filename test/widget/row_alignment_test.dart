@@ -9,16 +9,16 @@ import 'package:taskley/core/providers.dart';
 
 import 'app_flow_test.dart' show FakeHomeWidgetService, FakeNotificationService;
 
-/// Task rows use a checkbox where other screens use a 24dp icon. A checkbox
-/// carries its own tap padding and centres its circle inside it, which used to
-/// push task titles 24dp right of every other row's title.
+/// Task rows use a checkbox where ordinary rows use a 24dp icon. A checkbox
+/// carries its own tap padding and centres its circle inside it, which once
+/// pushed task titles 24dp right of every other row's title.
 void main() {
   late AppDatabase db;
 
   setUp(() => db = AppDatabase(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  testWidgets('task rows share the leading and title columns of other rows',
+  testWidgets('task rows share the leading and title columns of normal rows',
       (tester) async {
     await tester.runAsync(() async {
       final listId = await db.createList('Groceries');
@@ -36,9 +36,14 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final iconLeft = tester.getTopLeft(find.byIcon(Icons.list_alt)).dx;
-    final titleLeft = tester.getTopLeft(find.text('Groceries')).dx;
+    // Reference: a plain ListTile (leading icon + title) on Settings.
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    final iconLeft = tester.getTopLeft(find.byIcon(Icons.upload_file)).dx;
+    final titleLeft = tester.getTopLeft(find.text('Export backup')).dx;
 
+    await tester.tap(find.text('Lists'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Groceries'));
     await tester.pumpAndSettle();
 

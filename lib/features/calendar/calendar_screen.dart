@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart' hide isSameDay;
 
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_styles.dart';
 import '../../core/utils/date_utils.dart' as du;
 import '../tasks/task_editor_sheet.dart';
 import '../tasks/task_tile.dart';
@@ -78,14 +79,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                du.formatDayHeader(_selectedDay),
-                style: theme.textTheme.titleSmall!
-                    .copyWith(color: theme.colorScheme.primary),
-              ),
+              child: SectionLabel(du.formatDayHeader(_selectedDay),
+                  padding: EdgeInsets.zero),
             ),
           ),
           Expanded(

@@ -50,7 +50,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Test
-        run: flutter test
+        run: flutter test --exclude-tags golden
 
       - name: Build release APKs
         run: |

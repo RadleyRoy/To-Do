@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/theme/app_styles.dart';
 import '../backup/backup_service.dart';
 import '../import_ics/import_ics_screen.dart';
 
@@ -124,7 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Taskley'),
-            subtitle: Text('Version 1.0.0 · offline to-do app\ncreated by Radley'),
+            subtitle: Text('Version 1.1.0 · offline to-do app\ncreated by Radley'),
           ),
         ],
       ),
@@ -132,9 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _section(ThemeData theme, String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(title,
-            style: theme.textTheme.titleSmall!
-                .copyWith(color: theme.colorScheme.primary)),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+        child: SectionLabel(title, padding: EdgeInsets.zero),
       );
 }

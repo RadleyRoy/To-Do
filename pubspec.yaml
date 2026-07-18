@@ -1,7 +1,7 @@
 name: taskley
 description: "Taskley — an offline-first to-do app with checklists, smart recurring tasks, alarms, and a calendar view."
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.1.0+6
 
 environment:
   sdk: ^3.12.2

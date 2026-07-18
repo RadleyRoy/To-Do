@@ -90,9 +90,7 @@ void main() {
       (tester) async {
     await pumpApp(tester);
 
-    // Create the list through the FAB menu.
-    await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
+    // Create the list from the home page's "New list" card.
     await tester.tap(find.text('New list'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, 'Groceries');
@@ -111,13 +109,13 @@ void main() {
     // Complete it: moves under "Completed", undo snackbar appears.
     await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Completed (1)'), findsOneWidget);
+    expect(find.textContaining('COMPLETED (1)'), findsOneWidget);
     expect(find.textContaining('Completed "Buy milk"'), findsOneWidget);
 
     // Un-complete it again.
     await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Completed (1)'), findsNothing);
+    expect(find.textContaining('COMPLETED (1)'), findsNothing);
 
     await unmountApp(tester);
   });
@@ -185,7 +183,10 @@ void main() {
 
   testWidgets('completing a recurring task shows the next due date',
       (tester) async {
-    final due = DateTime.now().add(const Duration(hours: 1));
+    // A fixed hour today, so the task lands in "Today" whatever time the
+    // suite runs at (now + 1 hour rolls into tomorrow late at night).
+    final now = DateTime.now();
+    final due = DateTime(now.year, now.month, now.day, 9);
     // Direct db awaits must run outside the test's fake-async zone.
     await tester.runAsync(() => db.insertTask(TasksCompanion.insert(
           title: 'Water plants',

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_styles.dart';
+import '../../core/utils/date_utils.dart';
 import '../tasks/task_editor_sheet.dart';
 import 'list_detail_screen.dart';
 import 'smart_view_screen.dart';
@@ -13,79 +16,108 @@ class ListsHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lists = ref.watch(listsWithStatsProvider);
-    final todayCount =
-        ref.watch(todayTasksProvider).valueOrNull?.length ?? 0;
-    final upcomingCount =
-        ref.watch(upcomingTasksProvider).valueOrNull?.length ?? 0;
+    final todayTasks =
+        ref.watch(todayTasksProvider).valueOrNull ?? const <Task>[];
+    final upcomingTasks =
+        ref.watch(upcomingTasksProvider).valueOrNull ?? const <Task>[];
     final theme = Theme.of(context);
 
+    // Say something useful under each count rather than repeating the label.
+    final startOfToday = dateOnly(DateTime.now());
+    final overdue =
+        todayTasks.where((t) => t.dueAt!.isBefore(startOfToday)).length;
+    final todayCaption = switch ((todayTasks.length, overdue)) {
+      (0, _) => 'All clear',
+      (_, > 0) => '$overdue overdue',
+      _ => 'next at ${DateFormat.Hm().format(todayTasks.first.dueAt!)}',
+    };
+    final upcomingCaption = upcomingTasks.isEmpty
+        ? 'Nothing planned'
+        : formatDue(upcomingTasks.first.dueAt!);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Taskley')),
       floatingActionButton: FloatingActionButton(
         heroTag: 'home-fab',
         onPressed: () => _showCreateMenu(context, ref),
         child: const Icon(Icons.add),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
+      body: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              sliver: SliverList.list(children: [
+            _Greeting(),
+            const SizedBox(height: 20),
+            Row(
               children: [
-                _SmartTile(
-                  icon: Icons.today,
-                  color: theme.colorScheme.primary,
-                  title: 'Today',
-                  count: todayCount,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SmartViewScreen(
-                              view: SmartView.today))),
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.wb_sunny_outlined,
+                    label: 'Today',
+                    count: todayTasks.length,
+                    caption: todayCaption,
+                    background: theme.colorScheme.primaryContainer,
+                    foreground: theme.colorScheme.onPrimaryContainer,
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const SmartViewScreen(view: SmartView.today))),
+                  ),
                 ),
-                _SmartTile(
-                  icon: Icons.upcoming,
-                  color: theme.colorScheme.tertiary,
-                  title: 'Upcoming',
-                  count: upcomingCount,
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SmartViewScreen(
-                              view: SmartView.upcoming))),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SummaryCard(
+                    icon: Icons.event_outlined,
+                    label: 'Upcoming',
+                    count: upcomingTasks.length,
+                    caption: upcomingCaption,
+                    background: theme.colorScheme.tertiaryContainer,
+                    foreground: theme.colorScheme.onTertiaryContainer,
+                    onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SmartViewScreen(
+                                view: SmartView.upcoming))),
+                  ),
                 ),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  child: Text('My lists', style: theme.textTheme.titleSmall),
-                ),
-                switch (lists) {
-                  AsyncData(:final value) when value.isEmpty => Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No lists yet. Tap + to create one.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium!
-                            .copyWith(color: theme.colorScheme.outline),
-                      ),
-                    ),
-                  AsyncData(:final value) => _ReorderableLists(entries: value),
-                  _ => const Center(child: CircularProgressIndicator()),
-                },
               ],
             ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                'created by Radley',
-                style: theme.textTheme.bodySmall!
-                    .copyWith(color: theme.colorScheme.outline),
+            AppStyles.sectionGap,
+            const SectionLabel('My lists'),
+            AppStyles.labelGap,
+            switch (lists) {
+              AsyncData(:final value) when value.isEmpty => const SizedBox(),
+              AsyncData(:final value) => _ReorderableLists(entries: value),
+              AsyncError(:final error) => Text('$error'),
+              _ => const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+            },
+            _NewListCard(onTap: () => promptListName(context, ref)),
+              ]),
+            ),
+            // Keeps the credit at the bottom of the screen when the lists are
+            // short, and below them when they scroll.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 28, bottom: 24),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Text(
+                    'created by Radley',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -100,7 +132,7 @@ class ListsHomeScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.add_task),
               title: const Text('New task'),
-              subtitle: const Text('With date, alarm, or recurrence'),
+              subtitle: const Text('With date, notification, or recurrence'),
               onTap: () {
                 Navigator.pop(sheetContext);
                 showTaskEditor(context);
@@ -116,6 +148,217 @@ class ListsHomeScreen extends ConsumerWidget {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Good evening" over today's date.
+class _Greeting extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final greeting = switch (now.hour) {
+      < 12 => 'Good morning',
+      < 17 => 'Good afternoon',
+      _ => 'Good evening',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(greeting,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('EEEE, d MMMM').format(now),
+          style: theme.textTheme.headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tonal card showing a count for one of the smart views.
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.caption,
+    required this.background,
+    required this.foreground,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final int count;
+  final String caption;
+  final Color background;
+  final Color foreground;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: background,
+      borderRadius: AppStyles.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: AppStyles.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: foreground, size: 22),
+              const SizedBox(height: 14),
+              Text(
+                '$count',
+                style: theme.textTheme.displaySmall?.copyWith(
+                    color: foreground, fontWeight: FontWeight.w700, height: 1),
+              ),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                      color: foreground, fontWeight: FontWeight.w600)),
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: foreground.withValues(alpha: 0.75)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A list as a card: name, progress bar, and completed/total.
+class _ListCard extends StatelessWidget {
+  const _ListCard({
+    required this.entry,
+    required this.onTap,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  final ListWithStats entry;
+  final VoidCallback onTap;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = entry.totalTasks;
+    final done = entry.doneTasks;
+    final progress = total == 0 ? 0.0 : done / total;
+    final complete = total > 0 && done == total;
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHigh,
+      borderRadius: AppStyles.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.list.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (complete)
+                    Icon(Icons.check_circle,
+                        size: 18, color: theme.colorScheme.primary)
+                  else
+                    Text('$done/$total',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  PopupMenuButton<String>(
+                    tooltip: 'List options',
+                    onSelected: (choice) =>
+                        choice == 'rename' ? onRename() : onDelete(),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'rename', child: Text('Rename')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: total == 0
+                    ? Text('No items yet',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.outline))
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 6,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Outlined "add" card that closes off the list section.
+class _NewListCard extends StatelessWidget {
+  const _NewListCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: AppStyles.cardRadius,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: AppStyles.cardRadius,
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('New list',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ),
     );
@@ -178,11 +421,9 @@ class _ReorderableListsState extends ConsumerState<_ReorderableLists> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ReorderableListView(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      buildDefaultDragHandles: true,
       onReorderItem: (oldIndex, newIndex) {
         setState(() {
           final moved = _entries.removeAt(oldIndex);
@@ -192,34 +433,27 @@ class _ReorderableListsState extends ConsumerState<_ReorderableLists> {
             .read(databaseProvider)
             .reorderLists([for (final e in _entries) e.list.id]);
       },
+      proxyDecorator: (child, index, animation) => Material(
+        color: Colors.transparent,
+        borderRadius: AppStyles.cardRadius,
+        elevation: 6,
+        child: child,
+      ),
       children: [
         for (final entry in _entries)
-          ListTile(
+          Padding(
             key: ValueKey('list-${entry.list.id}'),
-            leading: Icon(Icons.list_alt, color: theme.colorScheme.secondary),
-            title: Text(entry.list.name),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('${entry.doneTasks}/${entry.totalTasks}',
-                    style: theme.textTheme.bodySmall),
-                PopupMenuButton<String>(
-                  onSelected: (choice) => switch (choice) {
-                    'rename' =>
-                        promptListName(context, ref, existing: entry.list),
-                    _ => _confirmDeleteList(context, entry.list),
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'rename', child: Text('Rename')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
-                  ],
-                ),
-              ],
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _ListCard(
+              entry: entry,
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => ListDetailScreen(listId: entry.list.id))),
+              onRename: () =>
+                  promptListName(context, ref, existing: entry.list),
+              onDelete: () => _confirmDeleteList(context, entry.list),
             ),
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => ListDetailScreen(listId: entry.list.id))),
           ),
       ],
     );
@@ -244,30 +478,5 @@ class _ReorderableListsState extends ConsumerState<_ReorderableLists> {
     if (confirmed == true) {
       await ref.read(databaseProvider).deleteList(list.id);
     }
-  }
-}
-
-class _SmartTile extends StatelessWidget {
-  const _SmartTile(
-      {required this.icon,
-      required this.color,
-      required this.title,
-      required this.count,
-      required this.onTap});
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(title),
-      trailing: count == 0 ? null : Badge.count(count: count),
-      onTap: onTap,
-    );
   }
 }

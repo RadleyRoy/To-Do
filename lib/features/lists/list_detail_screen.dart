@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/database.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_styles.dart';
 import '../tasks/task_actions.dart';
 import '../tasks/task_editor_sheet.dart';
 import '../tasks/task_tile.dart';
@@ -115,11 +116,11 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
                         onTap: () =>
                             setState(() => _showCompleted = !_showCompleted),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
                           child: Row(
                             children: [
-                              Text('Completed (${done.length})',
-                                  style: theme.textTheme.titleSmall),
+                              SectionLabel('Completed (${done.length})',
+                                  padding: EdgeInsets.zero),
                               Icon(
                                 _showCompleted
                                     ? Icons.expand_less

@@ -33,7 +33,9 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        # Golden screenshots are a local design tool; rendering differs
+        # between platforms, so they are not asserted in CI.
+        run: flutter test --exclude-tags golden
 
       - name: Build debug APK
         run: flutter build apk --debug

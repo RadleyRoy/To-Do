@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/theme/app_styles.dart';
 import '../../core/utils/date_utils.dart';
 import '../tasks/task_tile.dart';
 
@@ -45,12 +46,8 @@ class SmartViewScreen extends ConsumerWidget {
             if (currentDay == null || day != currentDay) {
               currentDay = day;
               children.add(Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Text(
-                  _header(day),
-                  style: theme.textTheme.titleSmall!
-                      .copyWith(color: theme.colorScheme.primary),
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+                child: SectionLabel(_header(day)),
               ));
             }
             children.add(TaskTile(task: task));
